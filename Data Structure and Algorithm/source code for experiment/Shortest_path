@@ -1,0 +1,231 @@
+#include <iostream>
+#include <cstdio>
+#include <cstring>
+#include <climits>
+
+using namespace std;
+#define INF INT_MAX
+#define MAX_VERTEX_NUM 100
+
+typedef struct {
+    char *vexs[MAX_VERTEX_NUM]; // Vertex array
+    int arcs[MAX_VERTEX_NUM][MAX_VERTEX_NUM]; // Adjacency matrix
+    int vexnum, arcnum; // Current number of vertices and edges
+    int kind; // Graph type
+} MGraph;
+
+void CreateMGraph(MGraph &G) {
+    FILE *fp = fopen("city.txt", "r");
+    if (fp == NULL) {
+        cout << "Error opening file city.txt!" << endl;
+        return;
+    }
+
+    // init
+    G.vexnum = 0;
+    G.arcnum = 0;
+    for (int i = 0; i < MAX_VERTEX_NUM; ++i) {
+        G.vexs[i] = nullptr;
+    }
+    // initialize full matrix to INF
+    for (int i = 0; i < MAX_VERTEX_NUM; ++i)
+        for (int j = 0; j < MAX_VERTEX_NUM; ++j)
+            G.arcs[i][j] = INF;
+
+    int m = 0;
+    char str[100];
+    int maxIndex = -1;
+    // Read vertices: lines like "index name"
+    while (fscanf(fp, "%d %99s", &m, str) == 2) {
+        if (m < 0 || m >= MAX_VERTEX_NUM) {
+            cout << "Vertex index out of range: " << m << endl;
+            continue;
+        }
+        // avoid double allocation if same index appears
+        if (G.vexs[m] == nullptr) {
+            G.vexs[m] = new char[strlen(str) + 1];
+            strcpy(G.vexs[m], str);
+        } else {
+            // overwrite name if provided again
+            delete[] G.vexs[m];
+            G.vexs[m] = new char[strlen(str) + 1];
+            strcpy(G.vexs[m], str);
+        }
+        if (m > maxIndex) maxIndex = m;
+    }
+    fclose(fp);
+
+    if (maxIndex >= 0) {
+        G.vexnum = maxIndex + 1;
+    } else {
+        G.vexnum = 0;
+    }
+
+    FILE *fp2 = fopen("dist.txt", "r");
+    if (fp2 == NULL) {
+        cout << "Error opening file dist.txt!" << endl;
+        return;
+    }
+    int v1, v2, weight;
+    while (fscanf(fp2, "%d %d %d", &v1, &v2, &weight) == 3) {
+        if (v1 < 0 || v1 >= MAX_VERTEX_NUM || v2 < 0 || v2 >= MAX_VERTEX_NUM) {
+            cout << "Edge index out of range: " << v1 << " - " << v2 << endl;
+            continue;
+        }
+        G.arcs[v1][v2] = weight;
+        G.arcs[v2][v1] = weight; // Assuming undirected graph
+        G.arcnum++;
+    }
+    fclose(fp2);
+    cout << "Graph created successfully!" << endl;
+}
+
+void Deletevex(MGraph &G, int v) {
+    if (v < 0 || v >= G.vexnum) return;
+    delete[] G.vexs[v];
+    G.vexs[v] = nullptr;
+    for (int i = 0; i < G.vexnum; i++) {
+        G.arcs[v][i] = INF;
+        G.arcs[i][v] = INF;
+    }
+}
+
+float dijkstra(const MGraph &G, int v0, int v1) {
+    if (v0 < 0 || v0 >= G.vexnum || v1 < 0 || v1 >= G.vexnum) {
+        std::cout << "Invalid source/target vertex index." << std::endl;
+        return INF;
+    }
+
+    bool S[MAX_VERTEX_NUM] = {false}; // 已加入最短路集合
+    float dist[MAX_VERTEX_NUM];       // 源到各点的当前最短距离
+    int prev[MAX_VERTEX_NUM];         // 前驱节点索引，-1 表示无
+
+    // 初始化
+    for (int v = 0; v < G.vexnum; ++v) {
+        if (G.arcs[v0][v] != INF && v != v0) {
+            dist[v] = (float)G.arcs[v0][v];
+            prev[v] = v0;
+        } else {
+            dist[v] = (v == v0) ? 0.0f : (float)INF;
+            prev[v] = -1;
+        }
+        S[v] = false;
+    }
+    dist[v0] = 0.0f;
+    S[v0] = false; // 还未正式加入，下面循环会加入
+
+    // 主循环：重复选择未加入集合中距离最小的顶点并松弛其邻边
+    for (int i = 0; i < G.vexnum; ++i) {
+        float minDist = (float)INF;
+        int u = -1;
+        for (int w = 0; w < G.vexnum; ++w) {
+            if (!S[w] && dist[w] < minDist) {
+                minDist = dist[w];
+                u = w;
+            }
+        }
+        if (u == -1) break; // 剩余不可达顶点
+        S[u] = true;
+
+        for (int w = 0; w < G.vexnum; ++w) {
+            if (!S[w] && G.arcs[u][w] != INF && dist[u] != INF) {
+                float newd = dist[u] + (float)G.arcs[u][w];
+                if (newd < dist[w]) {
+                    dist[w] = newd;
+                    prev[w] = u;
+                }
+            }
+        }
+    }
+
+    // 打印并重建最短路径
+    if (dist[v1] == INF) {
+        std::cout << "No path from ";
+        if (G.vexs[v0]) std::cout << G.vexs[v0]; else std::cout << v0;
+        std::cout << " to ";
+        if (G.vexs[v1]) std::cout << G.vexs[v1]; else std::cout << v1;
+        std::cout << "." << std::endl;
+        return dist[v1];
+    } else {
+        int stack[MAX_VERTEX_NUM];
+        int top = 0;
+        int cur = v1;
+        while (cur != -1) {
+            stack[top++] = cur;
+            if (cur == v0) break;
+            cur = prev[cur];
+        }
+        // 如果未到达源（防御性检查）
+        if (stack[top - 1] != v0) {
+            std::cout << "No path (unexpected) from " << v0 << " to " << v1 << std::endl;
+            return (float)INF;
+        }
+
+        // 输出路径
+        std::cout << "Shortest path from ";
+        if (G.vexs[v0]) std::cout << G.vexs[v0]; else std::cout << v0;
+        std::cout << " to ";
+        if (G.vexs[v1]) std::cout << G.vexs[v1]; else std::cout << v1;
+        std::cout << " : ";
+
+        for (int i = top - 1; i >= 0; --i) {
+            int idx = stack[i];
+            if (G.vexs[idx]) std::cout << G.vexs[idx];
+            else std::cout << idx;
+            if (i > 0) std::cout << " -> ";
+        }
+        std::cout << "  (distance = " << dist[v1] << ")" << std::endl;
+    }
+
+    return dist[v1];
+}
+
+int main() {
+    MGraph G;
+    CreateMGraph(G);
+
+    cout << "Shortest distance from Shenyang to Xi'an: ";
+    float distance = dijkstra(G, 2, 9);
+    if (distance != INF) {
+        cout << distance << endl;
+    } else {
+        cout << "No path exists." << endl;
+    }
+    cout << "Shortest distance from Huhehaote to Chengdu: ";
+    distance = dijkstra(G, 6, 15);
+    if (distance != INF) {
+        cout << distance << endl;
+    } else {
+        cout << "No path exists." << endl;
+    }
+    cout << "Shortest distance from Shanghai to Wulumuqi: ";
+    distance = dijkstra(G, 13, 12);
+    if (distance != INF) {
+        cout << distance << endl;
+    } else {
+        cout << "No path exists." << endl;
+    }
+    Deletevex(G, 8); // Delete Beijing
+    cout << "After deleting Zhengzhou, shortest distance from Shenyang to Xi'an: ";
+    distance = dijkstra(G, 2, 9);
+    if (distance != INF) {
+        cout << distance << endl;
+    } else {
+        cout << "No path exists." << endl;
+    }
+    cout << "After deleting Zhengzhou, shortest distance from Huhehaote to Chengdu: ";
+    distance = dijkstra(G, 6, 15);
+    if (distance != INF) {
+        cout << distance << endl;
+    } else {
+        cout << "No path exists." << endl;
+    }
+    cout << "After deleting Zhengzhou, shortest distance from Shanghai to Wulumuqi: ";
+    distance = dijkstra(G, 13, 12);
+    if (distance != INF) {
+        cout << distance << endl;
+    } else {
+        cout << "No path exists." << endl;
+    }
+    return 0;
+}
