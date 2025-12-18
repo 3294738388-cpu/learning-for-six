@@ -1,5 +1,5 @@
 #include <iostream>
-#include "C:\Users\TX\Desktop\Data Structure\include\Caculator.h"
+#include "Caculator.h"
 using namespace std;
 
 int main() {
