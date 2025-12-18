@@ -2,7 +2,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iomanip>
-#include "C:\Users\TX\Desktop\Data Structure\include\LinkQueue.h"
+#include "LinkQueue.h"
 #define maxnumber 3
 #define MAXWAITING_TIME 120 // 最大等待时间，单位：分钟
 using namespace std;
