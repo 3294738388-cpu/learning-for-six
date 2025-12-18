@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include "C:\Users\TX\Desktop\Data Structure\include\CharStack.h"
+#include "CharStack.h"
 #include <cstdio>    // for FILE, fgetc, rewind
 #include <vector>
 
