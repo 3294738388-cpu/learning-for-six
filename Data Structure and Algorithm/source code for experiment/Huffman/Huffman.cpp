@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "C:\Users\TX\Desktop\Data Structure\include\Huffman.h"
+#include "Huffman.h"
 
 int main() {
     int choice;
